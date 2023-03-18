@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+
+  app:
+    container_name: ohlc_api_local
+    build: 
+      context: ./project
+      dockerfile: Dockerfile.local
+    ports:
+      - "8090:8080"
+    restart: on-failure
+    volumes:
+      - ./project:/app
+    depends_on:
+     - ohlc_postgres_local_db
+    networks:
+      - ohlc_net_local
+
+  ohlc_postgres_local_db:
+    image: postgres:latest
+    container_name: ohlc_postgres_local_db
+    restart: unless-stopped
+    env_file:
+      - .env 
+    ports:
+      - "5434:5432"
+    expose:
+      - 5434
+    volumes:
+      - ./psql_local_data:/var/lib/postgresql/data
+    networks:
+      - ohlc_net_local
+
+volumes:
+  psql_local_data:
+
+networks:
+  ohlc_net_local:
+    driver: bridge
+
