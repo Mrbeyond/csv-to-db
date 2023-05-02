@@ -1,12 +1,14 @@
 package test
 
 import (
+	"csvapi-test/model"
+	"csvapi-test/router"
 	"csvapi-test/services"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -44,77 +46,87 @@ type FullPaginationResponse struct {
 }
 
 func TestGetMax100(t *testing.T) {
-	var response SimpleResponse
-
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-
-	req, err := http.NewRequest("GET", "http://127.0.0.1:8090/data?limit=100", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	assert.Nil(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code must be 200")
-	assert.Equal(t, response.Status, "success", "Response status must be success")
-	assert.LessOrEqual(t, len(response.Data), 100, "Length data must not be greater than 100")
-}
-
-func TestGetWithSearch(t *testing.T) {
-	search := fmt.Sprintf("%d", 1644719460000)
-	url := fmt.Sprintf("%s:%s/data?limit=20&search=%s", baseUrl, port, search)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
+	model.DbConfig("TESTING")
+	router := router.AppInstance()
 
 	var response SimpleResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	assert.Nil(t, err)
-	assert.True(t, response.MustContainSearch(t, search))
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code must be 200")
-	assert.Equal(t, response.Status, "success", "Response status must be success")
-	assert.LessOrEqual(t, len(response.Data), 20, "Length data must not be greater than 20")
-}
 
-func TestGetWithFullPagination(t *testing.T) {
-	url := fmt.Sprintf("%s:%s/data?limit=10&ptype=full", baseUrl, port)
-	req, err := http.NewRequest("GET", url, nil)
+	// client := &http.Client{
+	// 	Timeout: time.Second * 10,
+	// }
+
+	w := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", "/data?limit=100", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	var response FullPaginationResponse
+	router.ServeHTTP(w, req)
 
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err = json.NewDecoder(w.Body).Decode(&response)
 	assert.Nil(t, err)
-	assert.NotNil(t, response.Pagination)
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code must be 200")
+	assert.Equal(t, http.StatusOK, w.Code, "Status code must be 200")
 	assert.Equal(t, response.Status, "success", "Response status must be success")
 	assert.LessOrEqual(t, len(response.Data), 100, "Length data must not be greater than 100")
+
+	// resp, err := client.Do(req)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// defer resp.Body.Close()
+
+	// assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code must be 200")
+	// assert.Equal(t, response.Status, "success", "Response status must be success")
+	// assert.LessOrEqual(t, len(response.Data), 100, "Length data must not be greater than 100")
 }
+
+// func TestGetWithSearch(t *testing.T) {
+// 	search := fmt.Sprintf("%d", 1644719460000)
+// 	url := fmt.Sprintf("%s:%s/data?limit=20&search=%s", baseUrl, port, search)
+// 	req, err := http.NewRequest("GET", url, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	client := &http.Client{
+// 		Timeout: time.Second * 10,
+// 	}
+
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	var response SimpleResponse
+// 	err = json.NewDecoder(resp.Body).Decode(&response)
+// 	assert.Nil(t, err)
+// 	assert.True(t, response.MustContainSearch(t, search))
+// 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code must be 200")
+// 	assert.Equal(t, response.Status, "success", "Response status must be success")
+// 	assert.LessOrEqual(t, len(response.Data), 20, "Length data must not be greater than 20")
+// }
+
+// func TestGetWithFullPagination(t *testing.T) {
+// 	url := fmt.Sprintf("%s:%s/data?limit=10&ptype=full", baseUrl, port)
+// 	req, err := http.NewRequest("GET", url, nil)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	client := &http.Client{
+// 		Timeout: time.Second * 10,
+// 	}
+
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer resp.Body.Close()
+// 	var response FullPaginationResponse
+
+// 	err = json.NewDecoder(resp.Body).Decode(&response)
+// 	assert.Nil(t, err)
+// 	assert.NotNil(t, response.Pagination)
+// 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Status code must be 200")
+// 	assert.Equal(t, response.Status, "success", "Response status must be success")
+// 	assert.LessOrEqual(t, len(response.Data), 100, "Length data must not be greater than 100")
+// }

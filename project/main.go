@@ -23,17 +23,14 @@ func main() {
 	}
 
 	// Establish database connection,
-	model.DbConfig()
+	model.DbConfig("LIVE_CONNECTION")
 
-	// Go gin Default engine visit https://github.com/gin-gonic/gin
-	app := gin.Default()
+	//Initialize *gin.Engine and app routes
+	app := router.AppInstance()
 
 	app.GET("", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, "Up and running")
 	})
-
-	// Add app controller routers
-	router.AppInstance(app)
 
 	app.NoRoute(func(ctx *gin.Context) {
 		notFoundResponse := gin.H{

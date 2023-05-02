@@ -2,12 +2,15 @@ package test
 
 import (
 	"bytes"
+	"csvapi-test/model"
+	"csvapi-test/router"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,6 +55,8 @@ type CreateResponse struct {
 }
 
 func TestSaveSCV(t *testing.T) {
+	model.DbConfig("TESTING")
+	router := router.AppInstance()
 	file, err := os.CreateTemp("", "csv_file*.csv")
 	if err != nil {
 		t.Fatalf("Error creating test file: %v", err)
@@ -100,34 +105,27 @@ func TestSaveSCV(t *testing.T) {
 	}
 	writer.Close()
 
-	url := fmt.Sprintf("%s:%s/data", baseUrl, port)
 	// Create a new request to the create endpoint with the test file attached
-	req, err := http.NewRequest(http.MethodPost, url, &body)
+	req, err := http.NewRequest(http.MethodPost, "/data", &body)
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	client := &http.Client{
-		Timeout: time.Minute * 3,
-	}
+	w := httptest.NewRecorder()
+
 	// Use the endpoint handler to process the request and capture the response
 	beforeRequest := time.Now()
-
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	router.ServeHTTP(w, req)
 	timeDiff := time.Now().Sub(beforeRequest).Seconds()
-	defer resp.Body.Close()
 
 	var response CreateResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err = json.NewDecoder(w.Body).Decode(&response)
 
 	t.Log(response, timeDiff)
 	assert.Nil(t, err, "Invalid response type")
 	assert.NotNil(t, response, "Response must not ne nil")
-	assert.Equal(t, http.StatusCreated, resp.StatusCode, "Status code must be 201")
+	assert.Equal(t, http.StatusCreated, w.Code, "Status code must be 201")
 	assert.Equal(t, response.Status, "success", "Response status must be success")
 	assert.NotEmpty(t, response.Data.CsvLinesRead, "Lines read must be returned")
 	assert.Equal(t, response.Data.CsvLinesRead, response.Data.TotalSavedRows, "Not all files are saved")
