@@ -16,12 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-)
-
-const (
-	port    = "8090"             // Port must be specific port used on the app container
-	baseUrl = "http://127.0.0.1" // Base url for the app instance on the host the container
 )
 
 type OHLC struct {
@@ -44,6 +40,7 @@ var (
 	}
 	//Expected data header
 	csvHeader = []string{"UNIX", "SYMBOL", "OPEN", "HIGH", "LOW", "CLOSE"}
+	appRouter *gin.Engine
 )
 
 type CreateResponse struct {
@@ -54,9 +51,13 @@ type CreateResponse struct {
 	Status string `json:"status"`
 }
 
-func TestSaveSCV(t *testing.T) {
+func init() {
 	model.DbConfig("TESTING")
-	router := router.AppInstance()
+	appRouter = router.AppInstance()
+}
+
+func TestSaveSCV(t *testing.T) {
+
 	file, err := os.CreateTemp("", "csv_file*.csv")
 	if err != nil {
 		t.Fatalf("Error creating test file: %v", err)
@@ -116,12 +117,13 @@ func TestSaveSCV(t *testing.T) {
 
 	// Use the endpoint handler to process the request and capture the response
 	beforeRequest := time.Now()
-	router.ServeHTTP(w, req)
+	appRouter.ServeHTTP(w, req)
 	timeDiff := time.Now().Sub(beforeRequest).Seconds()
 
 	var response CreateResponse
 	err = json.NewDecoder(w.Body).Decode(&response)
 
+	t.Log(w.Body.String())
 	t.Log(response, timeDiff)
 	assert.Nil(t, err, "Invalid response type")
 	assert.NotNil(t, response, "Response must not ne nil")
@@ -135,6 +137,7 @@ func TestSaveSCV(t *testing.T) {
 
 // Test for non csv file uploaded
 func TestNonCsvFileType(t *testing.T) {
+
 	// Create a temp test file
 	file, err := os.CreateTemp("", "csv_file*.txt")
 	if err != nil {
@@ -162,34 +165,20 @@ func TestNonCsvFileType(t *testing.T) {
 		t.Fatalf("Error copying file to form file: %v", err)
 	}
 	writer.Close()
-	url := fmt.Sprintf("%s:%s/data", baseUrl, port)
-	req, err := http.NewRequest("POST", url, &body)
+
+	req, err := http.NewRequest("POST", "/data", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
+	w := httptest.NewRecorder()
+	appRouter.ServeHTTP(w, req)
 
-	bodyString, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var response CreateResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-
-	assert.Contains(t, string(bodyString), "Expected a csv file",
+	assert.Contains(t, w.Body.String(), "Expected a csv file",
 		"Invalid response for wrong file type ",
 	)
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 // Test for invalid csv header against expected format
@@ -244,27 +233,16 @@ func TestUnexpectedCvsFormat(t *testing.T) {
 		t.Fatalf("Error copying file to form file: %v", err)
 	}
 	defer writer.Close()
-	// Create a new request to the create endpoint with the test file attached
-	url := fmt.Sprintf("%s:%s/data", baseUrl, port)
-	req, err := http.NewRequest("POST", url, &body)
+
+	req, err := http.NewRequest(http.MethodPost, "/data", &body)
 	if err != nil {
 		t.Fatalf("Error From client request %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
 
-	bodyString, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(string(bodyString))
+	w := httptest.NewRecorder()
 
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	appRouter.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

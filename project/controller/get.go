@@ -19,11 +19,11 @@ func Fetch(c *gin.Context) {
 	)
 
 	// Compute full search on the request search query if set
-	if search != "" {
+	if search != "" && !strings.HasPrefix(db.Dialector.Name(), "sqlite") {
 		db = db.Where(
 			`to_tsvector(
-				'english', unix || ' ' || symbol || ' ' || open || ' ' || high  || ' ' ||  low  || ' ' || close  
-				) @@ to_tsquery('english', ?)`,
+					'english', unix || ' ' || symbol || ' ' || open || ' ' || high  || ' ' ||  low  || ' ' || close  
+					) @@ to_tsquery('english', ?)`,
 			search)
 	}
 

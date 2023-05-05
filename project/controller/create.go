@@ -115,7 +115,6 @@ func (processPool *ProcessPool) processCsvChunk(db *gorm.DB) {
 				// check if all the scv lines has been saved
 				processPool.mutex.Lock()
 				processPool.totalChunkSaved += len(rows)
-				fmt.Println(processPool.totalChunkSaved)
 				if processPool.csvLinesRead == processPool.totalChunkSaved {
 					processPool.done = true
 					close(processPool.dataChan) //close data channel
